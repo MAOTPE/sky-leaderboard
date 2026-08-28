@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<title>SKY Leaderboard</title>
+<style>
+  :root {
+    --bg: #0a0c11;
+    --surface: #151924;
+    --surface-2: #1c212f;
+    --surface-3: #242a3a;
+    --border: #2b3142;
+    --text: #f3f5f9;
+    --text-dim: #9aa3b8;
+    --text-faint: #5c637a;
+    --red: #ef1c33;
+    --red-bright: #ff4d5e;
+    --gold: #ffcc4d;
+    --silver: #d7dee9;
+    --bronze: #e2965b;
+    --radius: 18px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 12% -10%, rgba(239,28,51,0.18), transparent 45%),
+      radial-gradient(circle at 88% 0%, rgba(255,204,77,0.10), transparent 40%),
+      var(--bg);
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  h1, h2 {
+    font-family: "Teko", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+  }
+
+  button:focus-visible, [contenteditable]:focus-visible {
+    outline: 2px solid var(--red-bright);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Top bar ---------- */
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: rgba(10,12,17,0.86);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand .mark {
+    font-family: "Teko", sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--red-bright);
+    line-height: 1;
+  }
+  .brand .sub {
+    font-size: 26px;
+    font-family: "Teko", sans-serif;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+  }
+  body[data-local-view="class"] .brand { display: none; }
+
+  .back-btn {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px 9px 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .back-btn:hover { color: var(--text); border-color: var(--text-faint); }
+  body[data-local-view="class"] .back-btn { display: inline-flex; }
+
+  .topbar-spacer { flex: 1; }
+
+  .class-count-pill { font-size: 13px; color: var(--text-faint); font-weight: 600; letter-spacing: 0.02em; }
+  body[data-local-view="class"] .class-count-pill { display: none; }
+
+  .save-status { font-size: 12px; font-weight: 700; color: var(--text-faint); min-width: 84px; text-align: right; }
+  .save-status.saving, .save-status.loading { color: var(--text-dim); }
+  .save-status.saved { color: #52c95c; }
+  .save-status.error { color: var(--red-bright); }
+
+  .boot-error {
+    display: none; margin: 14px 20px 0; padding: 12px 16px; background: rgba(239,28,51,0.12);
+    border: 1px solid rgba(239,28,51,0.4); border-radius: 12px; color: var(--red-bright); font-size: 14px; font-weight: 600;
+  }
+  .boot-error.show { display: block; }
+  .boot-error button { margin-left: 10px; text-decoration: underline; font-weight: 700; }
+
+  /* ---------- View switching (all local) ---------- */
+
+  main { padding: 22px 20px 64px; max-width: 1560px; margin: 0 auto; }
+
+  body:not([data-local-view="class"]) #class-view { display: none; }
+  body[data-local-view="class"] #home-view { display: none; }
+
+  .class-block { display: none; }
+  #class-view.ready .class-block[data-key].is-active { display: block; }
+
+  /* ---------- Home view ---------- */
+
+  .home-head { margin-bottom: 18px; }
+  .home-head h1 { font-size: 40px; color: var(--text); }
+  .home-head p { margin: 4px 0 0; color: var(--text-dim); font-size: 15px; }
+
+  .class-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 14px;
+  }
+
+  .class-card {
+    text-align: left;
+    background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 118px;
+    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  .class-card:hover { transform: translateY(-2px); border-color: var(--red); box-shadow: 0 10px 26px -14px rgba(239,28,51,0.55); }
+  .class-card .cc-name { font-family: "Teko", sans-serif; font-size: 24px; font-weight: 600; color: var(--text); line-height: 1.1; }
+  .class-card .cc-meta { font-size: 12.5px; color: var(--text-faint); font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+  .class-card .cc-leader {
+    margin-top: auto; display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--text-dim);
+    background: rgba(255,204,77,0.08); border: 1px solid rgba(255,204,77,0.22); border-radius: 999px;
+    padding: 5px 10px 5px 6px; width: fit-content;
+  }
+  .class-card .cc-leader svg { width: 15px; height: 15px; flex: none; color: var(--gold); }
+  .class-card .cc-leader b { color: var(--gold); font-weight: 700; }
+  .class-card .cc-empty { margin-top: auto; font-size: 13px; color: var(--text-faint); font-style: italic; }
+
+  .archived-row { margin-top: 18px; }
+  .archived-toggle {
+    font-size: 13px; font-weight: 700; color: var(--text-faint); padding: 8px 4px; border-radius: 8px;
+  }
+  .archived-toggle:hover { color: var(--text-dim); }
+  .archived-grid { margin-top: 10px; opacity: 0.75; }
+  .class-card.archived { border-style: dashed; }
+  .class-card.archived .cc-name { color: var(--text-dim); }
+  .cc-restore {
+    margin-top: auto; align-self: flex-start; font-size: 12.5px; font-weight: 700; color: var(--text-dim);
+    background: var(--surface-3); border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px;
+  }
+  .cc-restore:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+  /* ---------- Class view header ---------- */
+
+  .class-head {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+
+  .class-name {
+    font-size: 46px; color: var(--text); line-height: 1; padding: 2px 6px; margin: -2px -6px;
+    border-radius: 8px; min-width: 40px; display: inline-block;
+  }
+  .class-name:hover { background: rgba(255,255,255,0.04); }
+
+  .class-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .tool-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--border); font-weight: 700; font-size: 13.5px; color: var(--text-dim);
+  }
+  .tool-btn:hover { color: var(--text); border-color: var(--text-faint); }
+  .tool-btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+  .tool-btn.primary:hover { background: var(--red-bright); border-color: var(--red-bright); }
+  .tool-btn.editing { background: var(--gold); border-color: var(--gold); color: #241a02; }
+  .tool-btn.danger { display: none; color: var(--text-faint); }
+  .tool-btn.danger:hover { background: var(--red); border-color: var(--red); color: #fff; }
+  .tool-btn svg { width: 15px; height: 15px; }
+
+  /* ---------- Roster ---------- */
+
+  .roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 8px; align-items: start; }
+
+  @media (max-width: 560px) {
+    .roster { grid-template-columns: 1fr; }
+  }
+
+  .empty-msg {
+    display: none;
+    color: var(--text-faint); font-size: 15px; text-align: center; padding: 48px 20px;
+    border: 1.5px dashed var(--border); border-radius: var(--radius); margin: 0;
+  }
+  .class-block.is-empty .empty-msg { display: block; }
+  .class-block.is-empty .roster { display: none; }
+
+  .student {
+    position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 7px 10px; overflow: hidden;
+  }
+
+  .rank-badge { flex: none; width: 22px; font-family: "Teko", sans-serif; font-size: 19px; font-weight: 600; color: var(--text-faint); text-align: center; line-height: 1; }
+  .rank-badge .rn { display: block; }
+  .rank-badge svg { width: 19px; height: 19px; display: none; margin: 0 auto; }
+
+  .student-identity {
+    flex: 1 1 64px; min-width: 0; display: flex; align-items: center; gap: 6px;
+  }
+
+  .avatar {
+    flex: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: "Plus Jakarta Sans", sans-serif; font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.92);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  }
+
+  .student-name {
+    font-family: "Teko", sans-serif; font-size: 20px; font-weight: 600; color: var(--text);
+    padding: 1px 4px; margin: -1px -4px; letter-spacing: 0.01em; min-width: 0;
+    border-radius: 5px; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .student-name:hover { background: rgba(255,255,255,0.05); }
+
+  .student-score-wrap {
+    flex: none; order: 3; display: flex; align-items: baseline; gap: 3px;
+    font-family: "Teko", sans-serif; font-size: 23px; font-weight: 600; color: var(--text);
+  }
+
+  .undo-btn {
+    align-self: center;
+    width: 19px; height: 19px; border-radius: 50%; flex: none;
+    background: var(--surface-3); border: 1px solid var(--border); color: var(--text-dim);
+    font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    margin-right: 2px;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .undo-btn:hover:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }
+  .undo-btn:disabled { opacity: 0.2; cursor: default; }
+  .pts-label { font-family: "Plus Jakarta Sans", sans-serif; font-size: 9px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .quick-adds { flex: none; display: flex; gap: 4px; order: 2; }
+
+  .quick-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    padding: 3px 8px; border-radius: 8px; background: var(--surface-3); border: 1px solid var(--border);
+    min-width: 50px; text-align: center;
+  }
+  .quick-btn:active { transform: scale(0.96); }
+  .quick-btn .place-label {
+    font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint);
+  }
+  .quick-btn .place-amount { font-family: "Teko", sans-serif; font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.1; }
+
+  .quick-btn.place-1 { border-color: rgba(255,204,77,0.45); }
+  .quick-btn.place-1:hover { background: rgba(255,204,77,0.16); border-color: var(--gold); }
+  .quick-btn.place-1 .place-label, .quick-btn.place-1 .place-amount { color: var(--gold); }
+
+  .quick-btn.place-2 { border-color: rgba(215,222,233,0.4); }
+  .quick-btn.place-2:hover { background: rgba(215,222,233,0.12); border-color: var(--silver); }
+  .quick-btn.place-2 .place-label, .quick-btn.place-2 .place-amount { color: var(--silver); }
+
+  .quick-btn.place-3 { border-color: rgba(226,150,91,0.4); }
+  .quick-btn.place-3:hover { background: rgba(226,150,91,0.14); border-color: var(--bronze); }
+  .quick-btn.place-3 .place-label, .quick-btn.place-3 .place-amount { color: var(--bronze); }
+
+  .remove-student-btn {
+    display: none; position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--surface-3); color: var(--text-faint); align-items: center; justify-content: center; font-size: 11px; z-index: 1;
+  }
+  .remove-student-btn:hover { background: var(--red); color: #fff; }
+  .class-block.editing .remove-student-btn { display: flex; }
+  .class-block.editing .student { padding-right: 26px; }
+
+  .student[data-rank="1"] {
+    background: linear-gradient(135deg, rgba(255,204,77,0.16), rgba(255,159,67,0.05) 60%, var(--surface));
+    border-color: rgba(255,204,77,0.55);
+    box-shadow: 0 0 0 1px rgba(255,204,77,0.12), 0 12px 30px -18px rgba(255,204,77,0.6);
+  }
+  .student[data-rank="1"] .rank-badge { color: var(--gold); }
+  .student[data-rank="1"] .rank-badge .rn { display: none; }
+  .student[data-rank="1"] .rank-badge svg { display: block; }
+  .student[data-rank="1"] .student-score-wrap { color: var(--gold); }
+  @media (prefers-reduced-motion: no-preference) {
+    .student[data-rank="1"] { animation: glow-pulse 2.6s ease-in-out infinite; }
+  }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(255,204,77,0.12), 0 12px 30px -18px rgba(255,204,77,0.55); }
+    50% { box-shadow: 0 0 0 1px rgba(255,204,77,0.28), 0 14px 34px -14px rgba(255,204,77,0.85); }
+  }
+
+  .student[data-rank="2"] { background: linear-gradient(135deg, rgba(215,222,233,0.10), var(--surface) 60%); border-color: rgba(215,222,233,0.4); }
+  .student[data-rank="2"] .rank-badge { color: var(--silver); }
+  .student[data-rank="2"] .student-score-wrap { color: var(--silver); }
+
+  .student[data-rank="3"] { background: linear-gradient(135deg, rgba(226,150,91,0.12), var(--surface) 60%); border-color: rgba(226,150,91,0.4); }
+  .student[data-rank="3"] .rank-badge { color: var(--bronze); }
+  .student[data-rank="3"] .student-score-wrap { color: var(--bronze); }
+
+  @media (max-width: 560px) {
+    .student { flex-wrap: wrap; row-gap: 6px; padding: 8px 10px; }
+    .student-identity { order: 1; }
+    .student-score-wrap { order: 2; font-size: 24px; }
+    .quick-adds { order: 3; flex-basis: 100%; justify-content: stretch; }
+    .quick-btn { flex: 1 1 0; min-width: 0; }
+    .class-name { font-size: 36px; }
+  }
+
+  footer { text-align: center; color: var(--text-faint); font-size: 12.5px; padding: 30px 20px 10px; }
+</style>
+</head>
+<body data-local-view="home">
+
+  <div class="topbar">
+    <button class="back-btn" id="back-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      All classes
+    </button>
+    <div class="brand">
+      <span class="mark">SKY</span>
+      <span class="sub">Leaderboard</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <span class="save-status" id="save-status"></span>
+    <span class="class-count-pill" id="class-count-pill">25 classes</span>
+  </div>
+
+  <div class="boot-error" id="boot-error">
+    Couldn't reach the server to load scores. <button type="button" id="boot-retry">Try again</button>
+  </div>
+
+  <main>
+    <div id="home-view">
+      <div class="home-head">
+        <h1>Pick a class</h1>
+        <p>Tap a class to open its scoreboard.</p>
+      </div>
+      <div class="class-grid" id="class-grid"></div>
+      <div class="archived-row" id="archived-row"></div>
+    </div>
+
+    <div id="class-view">
+      <div class="class-head">
+        <div></div>
+        <div class="class-tools">
+          <button class="tool-btn primary" id="add-student-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+            Add student
+          </button>
+          <button class="tool-btn" id="edit-mode-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Edit
+          </button>
+          <button class="tool-btn" id="reset-scores-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Reset scores
+          </button>
+          <button class="tool-btn danger" id="hide-class-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M3 3l18 18M10.6 5.1A10.9 10.9 0 0 1 12 5c5 0 9 4.5 10 7-.4 1.1-1.3 2.5-2.6 3.8M6.6 6.6C4.5 8 3.1 9.8 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Hide class
+          </button>
+        </div>
+      </div>
+
+      <section class="class-block" id="cb-class-1" data-key="class-1">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 1</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-2" data-key="class-2">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 2</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-3" data-key="class-3">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 3</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-4" data-key="class-4">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 4</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-5" data-key="class-5">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 5</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-6" data-key="class-6">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 6</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-7" data-key="class-7">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 7</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-8" data-key="class-8">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 8</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-9" data-key="class-9">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 9</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-10" data-key="class-10">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 10</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-11" data-key="class-11">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 11</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-12" data-key="class-12">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 12</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-13" data-key="class-13">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 13</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-14" data-key="class-14">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 14</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-15" data-key="class-15">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 15</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-16" data-key="class-16">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 16</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-17" data-key="class-17">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 17</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-18" data-key="class-18">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 18</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-19" data-key="class-19">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 19</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-20" data-key="class-20">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 20</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-21" data-key="class-21">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 21</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-22" data-key="class-22">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 22</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-23" data-key="class-23">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 23</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-24" data-key="class-24">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 24</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+      <section class="class-block" id="cb-class-25" data-key="class-25">
+        <h2 class="class-name" contenteditable="true" spellcheck="false">Class 25</h2>
+        <div class="roster"></div>
+        <p class="empty-msg">No students yet — tap "+ Add student" to set up this class.</p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>Twice-a-week class points, kept online. Bookmark this page — no login needed to tap.</footer>
+
+  <script>
+    var MEDAL_SVG = {
+      1: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 5.1 5.6.6-4.2 3.8 1.2 5.5L12 14.9 6.9 17l1.2-5.5-4.2-3.8 5.6-.6L12 2z" fill="currentColor"/></svg>'
+    };
+
+    function qs(sel, root) { return (root || document).querySelector(sel); }
+    function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+    function allBlocks() { return qsa('.class-block', qs('#class-view')); }
+    function score(el) { return parseInt(el.getAttribute('data-score') || '0', 10); }
+
+    var AVATAR_COLORS = ['#4f8cff', '#a56cff', '#ff6fb0', '#23c9a5', '#52c95c', '#38bdf8'];
+    function avatarColor(name) {
+      var sum = 0;
+      for (var i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+      return AVATAR_COLORS[sum % AVATAR_COLORS.length];
+    }
+    function renderAvatar(row) {
+      var name = (qs('.student-name', row).textContent || '').trim();
+      var avatarEl = qs('.avatar', row);
+      if (!avatarEl) return;
+      avatarEl.textContent = name ? name[0].toUpperCase() : '?';
+      avatarEl.style.background = avatarColor(name || '?');
+    }
+
+    function isArchived(block) { return qs('.roster', block).getAttribute('data-archived') === 'true'; }
+    function setArchived(block, val) { qs('.roster', block).setAttribute('data-archived', val ? 'true' : 'false'); }
+
+    var showArchived = false;
+
+    function buildClassCard(block, archivedMode) {
+      var key = block.getAttribute('data-key');
+      var name = qs('.class-name', block).textContent || 'Class';
+      var students = qsa('.student', block);
+
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'class-card' + (archivedMode ? ' archived' : '');
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'cc-name';
+      nameEl.textContent = name;
+      card.appendChild(nameEl);
+
+      var meta = document.createElement('span');
+      meta.className = 'cc-meta';
+      meta.textContent = students.length + (students.length === 1 ? ' student' : ' students');
+      card.appendChild(meta);
+
+      if (archivedMode) {
+        var restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'cc-restore';
+        restoreBtn.textContent = 'Restore to list';
+        restoreBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          setArchived(block, false);
+          renderHomeCards();
+          saveClass(block);
+        });
+        card.appendChild(restoreBtn);
+      } else if (students.length === 0) {
+        var empty = document.createElement('span');
+        empty.className = 'cc-empty';
+        empty.textContent = 'Tap to set up roster';
+        card.appendChild(empty);
+      } else {
+        var top = students.reduce(function (a, b) { return score(b) > score(a) ? b : a; });
+        var leader = document.createElement('span');
+        leader.className = 'cc-leader';
+        leader.innerHTML = MEDAL_SVG[1] + '<span>' + escapeHtml(qs('.student-name', top).textContent) + ' — <b class="num">' + score(top) + '</b></span>';
+        card.appendChild(leader);
+      }
+
+      card.addEventListener('click', function () { openClass(key); });
+      return card;
+    }
+
+    function renderHomeCards() {
+      var grid = qs('#class-grid');
+      var archivedRow = qs('#archived-row');
+      var blocks = allBlocks();
+      var active = blocks.filter(function (b) { return !isArchived(b); });
+      var archived = blocks.filter(isArchived);
+
+      qs('#class-count-pill').textContent = active.length + (active.length === 1 ? ' class' : ' classes');
+
+      grid.innerHTML = '';
+      active.forEach(function (block) { grid.appendChild(buildClassCard(block, false)); });
+
+      archivedRow.innerHTML = '';
+      if (archived.length) {
+        var toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'archived-toggle';
+        toggle.textContent = showArchived
+          ? 'Hide archived classes'
+          : 'Show ' + archived.length + ' hidden ' + (archived.length === 1 ? 'class' : 'classes');
+        toggle.addEventListener('click', function () {
+          showArchived = !showArchived;
+          renderHomeCards();
+        });
+        archivedRow.appendChild(toggle);
+
+        if (showArchived) {
+          var archivedGrid = document.createElement('div');
+          archivedGrid.className = 'class-grid archived-grid';
+          archived.forEach(function (block) { archivedGrid.appendChild(buildClassCard(block, true)); });
+          archivedRow.appendChild(archivedGrid);
+        }
+      }
+    }
+
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function refreshEmptyState(block) {
+      var count = qsa('.student', block).length;
+      block.classList.toggle('is-empty', count === 0);
+    }
+
+    // ---------------------------------------------------------------
+    // Save / load — talks to /api/state and /api/class
+    // ---------------------------------------------------------------
+
+    function setSaveStatus(state, msg) {
+      var el = qs('#save-status');
+      if (!el) return;
+      clearTimeout(setSaveStatus._t);
+      if (state === 'saving') { el.textContent = 'Saving…'; el.className = 'save-status saving'; }
+      else if (state === 'loading') { el.textContent = 'Loading…'; el.className = 'save-status loading'; }
+      else if (state === 'saved') {
+        el.textContent = 'Saved ✓'; el.className = 'save-status saved';
+        setSaveStatus._t = setTimeout(function () {
+          if (el.textContent === 'Saved ✓') { el.textContent = ''; el.className = 'save-status'; }
+        }, 2000);
+      } else if (state === 'error') {
+        el.textContent = msg || 'Not saved — check internet'; el.className = 'save-status error';
+      } else { el.textContent = ''; el.className = 'save-status'; }
+    }
+
+    function gatherClassPayload(block) {
+      return {
+        key: block.getAttribute('data-key'),
+        name: (qs('.class-name', block).textContent || '').trim() || 'Class',
+        archived: isArchived(block),
+        students: qsa('.student', block).map(function (row) {
+          return {
+            name: (qs('.student-name', row).textContent || '').trim() || 'Student',
+            score: score(row),
+            lastDelta: parseInt(row.getAttribute('data-last-delta') || '0', 10)
+          };
+        })
+      };
+    }
+
+    // Keyed by class key, so a debounced save started on ANY block (not just
+    // the currently "active" one — e.g. restoring a hidden class from the
+    // home grid) is never lost. flushAllPending() below is what guarantees
+    // a change is actually on the server before we ever refetch and
+    // re-render from it — skipping that step is exactly what let a fresh
+    // GET race ahead of a still-pending POST and silently undo an edit.
+    var saveTimers = {};
+    var pendingBlocks = {};
+
+    function doSave(block) {
+      var key = block.getAttribute('data-key');
+      var payload = gatherClassPayload(block);
+      setSaveStatus('saving');
+      return fetch('/api/class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function (r) {
+        if (!r.ok) throw new Error('bad status ' + r.status);
+        return r.json();
+      }).then(function () {
+        delete pendingBlocks[key];
+        setSaveStatus('saved');
+      }).catch(function () {
+        setSaveStatus('error');
+      });
+    }
+
+    function saveClass(block) {
+      if (!block) return;
+      var key = block.getAttribute('data-key');
+      pendingBlocks[key] = block;
+      clearTimeout(saveTimers[key]);
+      saveTimers[key] = setTimeout(function () {
+        delete saveTimers[key];
+        doSave(block);
+      }, 250);
+    }
+
+    function flushAllPending() {
+      var keys = Object.keys(saveTimers);
+      var proms = keys.map(function (key) {
+        clearTimeout(saveTimers[key]);
+        delete saveTimers[key];
+        var block = pendingBlocks[key];
+        return block ? doSave(block) : Promise.resolve();
+      });
+      return Promise.all(proms);
+    }
+
+    function applyClassDataToDom(cd) {
+      var block = qs('.class-block[data-key="' + cd.key + '"]', qs('#class-view'));
+      if (!block) return;
+      var nameEl = qs('.class-name', block);
+      if (document.activeElement !== nameEl) nameEl.textContent = cd.name;
+      setArchived(block, !!cd.archived);
+      var roster = qs('.roster', block);
+      roster.innerHTML = '';
+      (cd.students || []).forEach(function (s) {
+        roster.appendChild(buildStudentRow(s.name, s.score, s.lastDelta));
+      });
+      recomputeRanks(roster);
+      refreshEmptyState(block);
+    }
+
+    function refreshAllFromServer() {
+      setSaveStatus('loading');
+      return fetch('/api/state').then(function (r) {
+        if (!r.ok) throw new Error('bad status ' + r.status);
+        return r.json();
+      }).then(function (data) {
+        (data.classes || []).forEach(applyClassDataToDom);
+        renderHomeCards();
+        setSaveStatus('idle');
+        qs('#boot-error').classList.remove('show');
+      }).catch(function () {
+        setSaveStatus('error', 'Could not load');
+        qs('#boot-error').classList.add('show');
+      });
+    }
+
+    // ---------------------------------------------------------------
+    // View switching
+    // ---------------------------------------------------------------
+
+    function openClass(key) {
+      flushAllPending().then(function () {
+        document.body.setAttribute('data-local-view', 'class');
+        document.body.setAttribute('data-local-class', key);
+        return refreshAllFromServer();
+      }).then(function () {
+        allBlocks().forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-key') === key); });
+        syncEditModeUI(activeBlock());
+        window.scrollTo(0, 0);
+      });
+    }
+
+    function goHome() {
+      flushAllPending().then(function () {
+        document.body.setAttribute('data-local-view', 'home');
+        return refreshAllFromServer();
+      });
+    }
+
+    function activeBlock() {
+      var key = document.body.getAttribute('data-local-class');
+      return key ? qs('.class-block[data-key="' + key + '"]', qs('#class-view')) : null;
+    }
+
+    // ---------------------------------------------------------------
+    // Score + rank writes
+    // ---------------------------------------------------------------
+
+    function recomputeRanks(roster) {
+      var students = qsa('.student', roster);
+      students.sort(function (a, b) { return score(b) - score(a); });
+      students.forEach(function (s, i) {
+        roster.appendChild(s);
+        var rank = i + 1;
+        var rankStr = rank <= 3 ? String(rank) : '';
+        if (s.getAttribute('data-rank') !== rankStr) s.setAttribute('data-rank', rankStr);
+        var rn = qs('.rank-badge .rn', s);
+        if (rn.textContent !== String(rank)) rn.textContent = rank;
+        var badge = qs('.rank-badge', s);
+        var existingSvg = badge.querySelector('svg');
+        if (rank === 1) {
+          if (!existingSvg) badge.insertAdjacentHTML('beforeend', MEDAL_SVG[1]);
+        } else if (existingSvg) {
+          existingSvg.remove();
+        }
+      });
+    }
+
+    function animateCount(el, from, to) {
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce || Math.abs(to - from) < 2) { el.textContent = to; return; }
+      var start = performance.now();
+      var dur = 380;
+      function step(t) {
+        var p = Math.min(1, (t - start) / dur);
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(from + (to - from) * eased);
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = to;
+      }
+      requestAnimationFrame(step);
+    }
+
+    function buildStudentRow(name, initialScore, lastDelta) {
+      var row = document.createElement('div');
+      row.className = 'student';
+      row.setAttribute('data-score', String(initialScore || 0));
+      if (lastDelta) row.setAttribute('data-last-delta', String(lastDelta));
+
+      row.innerHTML =
+        '<div class="rank-badge"><span class="rn"></span></div>' +
+        '<div class="student-identity">' +
+          '<span class="avatar"></span>' +
+          '<span class="student-name" contenteditable="true" spellcheck="false"></span>' +
+        '</div>' +
+        '<div class="student-score-wrap">' +
+          '<button type="button" class="undo-btn" title="Nothing to undo yet" disabled>&#8634;</button>' +
+          '<span class="num student-score"></span><span class="pts-label">pts</span>' +
+        '</div>' +
+        '<div class="quick-adds">' +
+          '<button type="button" class="quick-btn place-1" data-delta="2500"><span class="place-label">1st</span><span class="place-amount">+2500</span></button>' +
+          '<button type="button" class="quick-btn place-2" data-delta="1500"><span class="place-label">2nd</span><span class="place-amount">+1500</span></button>' +
+          '<button type="button" class="quick-btn place-3" data-delta="1000"><span class="place-label">3rd</span><span class="place-amount">+1000</span></button>' +
+        '</div>' +
+        '<button type="button" class="remove-student-btn" title="Remove student">&times;</button>';
+
+      qs('.student-name', row).textContent = name;
+      qs('.student-score', row).textContent = String(initialScore || 0);
+      wireStudentRow(row);
+      renderAvatar(row);
+      return row;
+    }
+
+    function wireStudentRow(row) {
+      qs('.student-name', row).addEventListener('input', function () { renderAvatar(row); });
+      qs('.student-name', row).addEventListener('blur', function () {
+        renderHomeCards();
+        saveClass(row.closest('.class-block'));
+      });
+      qs('.student-name', row).addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+      });
+
+      var undoBtn = qs('.undo-btn', row);
+      var pendingUndo = parseInt(row.getAttribute('data-last-delta') || '0', 10);
+      if (pendingUndo) {
+        undoBtn.disabled = false;
+        undoBtn.title = 'Undo ' + (pendingUndo > 0 ? '+' + pendingUndo : pendingUndo);
+      }
+
+      qsa('.quick-btn', row).forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var delta = parseInt(btn.getAttribute('data-delta'), 10);
+          var current = score(row);
+          var next = Math.max(0, current + delta);
+          var applied = next - current;
+          row.setAttribute('data-score', String(next));
+          var scoreEl = qs('.student-score', row);
+          animateCount(scoreEl, current, next);
+
+          if (applied !== 0) {
+            row.setAttribute('data-last-delta', String(applied));
+            undoBtn.disabled = false;
+            undoBtn.title = 'Undo ' + (applied > 0 ? '+' + applied : applied);
+          }
+
+          var roster = row.parentElement;
+          recomputeRanks(roster);
+          renderHomeCards();
+          saveClass(row.closest('.class-block'));
+        });
+      });
+
+      undoBtn.addEventListener('click', function () {
+        var last = parseInt(row.getAttribute('data-last-delta') || '0', 10);
+        if (!last) return;
+        var current = score(row);
+        var next = Math.max(0, current - last);
+        row.setAttribute('data-score', String(next));
+        animateCount(qs('.student-score', row), current, next);
+
+        row.removeAttribute('data-last-delta');
+        undoBtn.disabled = true;
+        undoBtn.title = 'Nothing to undo yet';
+
+        var roster = row.parentElement;
+        recomputeRanks(roster);
+        renderHomeCards();
+        saveClass(row.closest('.class-block'));
+      });
+
+      qs('.remove-student-btn', row).addEventListener('click', function () {
+        var block = row.closest('.class-block');
+        row.remove();
+        recomputeRanks(qs('.roster', block));
+        refreshEmptyState(block);
+        renderHomeCards();
+        saveClass(block);
+      });
+    }
+
+    // ---------------------------------------------------------------
+    // Toolbar actions
+    // ---------------------------------------------------------------
+
+    function addStudent() {
+      var block = activeBlock();
+      if (!block) return;
+      var roster = qs('.roster', block);
+      var row = buildStudentRow('New student', 0);
+      roster.appendChild(row);
+      recomputeRanks(roster);
+      refreshEmptyState(block);
+      renderHomeCards();
+      saveClass(block);
+
+      var nameEl = qs('.student-name', row);
+      var range = document.createRange();
+      range.selectNodeContents(nameEl);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      nameEl.focus();
+    }
+
+    function syncEditModeUI(block) {
+      var isEditing = !!block && block.classList.contains('editing');
+      qs('#edit-mode-btn').classList.toggle('editing', isEditing);
+      qs('#hide-class-btn').style.display = isEditing ? 'inline-flex' : 'none';
+    }
+
+    function toggleEditMode() {
+      var block = activeBlock();
+      if (!block) return;
+      block.classList.toggle('editing');
+      syncEditModeUI(block);
+    }
+
+    function hideClass() {
+      var block = activeBlock();
+      if (!block) return;
+      var name = qs('.class-name', block).textContent;
+      var n = qsa('.student', block).length;
+      var ok = window.confirm(
+        'Hide "' + name + '" (' + n + (n === 1 ? ' student' : ' students') + ') from the class list?\n\n' +
+        'Nothing is deleted — the roster and scores stay exactly as they are. ' +
+        'You can bring it back anytime from "Show hidden classes" on the home screen.'
+      );
+      if (!ok) return;
+      setArchived(block, true);
+      saveClass(block);
+      flushAllPending().then(goHome);
+    }
+
+    function resetScores() {
+      var block = activeBlock();
+      if (!block) return;
+      var name = qs('.class-name', block).textContent;
+      if (!window.confirm('Reset every student in "' + name + '" back to 0 points?')) return;
+      qsa('.student', block).forEach(function (s) {
+        s.setAttribute('data-score', '0');
+        qs('.student-score', s).textContent = '0';
+        s.removeAttribute('data-last-delta');
+        var undoBtn = qs('.undo-btn', s);
+        undoBtn.disabled = true;
+        undoBtn.title = 'Nothing to undo yet';
+      });
+      recomputeRanks(qs('.roster', block));
+      renderHomeCards();
+      saveClass(block);
+    }
+
+    // ---------------------------------------------------------------
+    // Boot
+    // ---------------------------------------------------------------
+
+    document.addEventListener('DOMContentLoaded', function () {
+      qs('#back-btn').addEventListener('click', goHome);
+      qs('#add-student-btn').addEventListener('click', addStudent);
+      qs('#edit-mode-btn').addEventListener('click', toggleEditMode);
+      qs('#reset-scores-btn').addEventListener('click', resetScores);
+      qs('#hide-class-btn').addEventListener('click', hideClass);
+      qs('#boot-retry').addEventListener('click', refreshAllFromServer);
+
+      qsa('.class-name').forEach(function (nameEl) {
+        nameEl.addEventListener('blur', function () {
+          renderHomeCards();
+          saveClass(nameEl.closest('.class-block'));
+        });
+        nameEl.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+        });
+      });
+
+      qs('#class-view').classList.add('ready');
+      refreshAllFromServer();
+    });
+  </script>
+</body>
+</html>
