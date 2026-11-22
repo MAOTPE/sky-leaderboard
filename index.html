@@ -385,6 +385,13 @@
     });
     return map;
   }
+  // Highest points first, ties alphabetical. Used when a class is opened;
+  // the order is then frozen so rows never jump while points are added.
+  function pointsOrder(students) {
+    return students.slice().sort(function (a, b) {
+      return b.score - a.score || a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base', numeric: true });
+    });
+  }
   function alphaOrder(students) {
     return students.map(function (s, i) { return { s: s, i: i }; }).sort(function (a, b) {
       var c = a.s.name.trim().localeCompare(b.s.name.trim(), undefined, { sensitivity: 'base', numeric: true });
@@ -532,13 +539,13 @@
   }
 
   // ---------------- Score mode ----------------
-  // Names are laid out once (alphabetical) and never move while points are
-  // being added. Only the rank chips and colors update.
+  // Rows are laid out once, by points, when the class opens. They never move
+  // while points are being added; only medals and colours update.
   function renderTiles() {
     var c = currentClass(); if (!c) return;
     var wrap = $('tiles'); wrap.innerHTML = '';
     $('empty-msg').hidden = c.students.length > 0;
-    alphaOrder(c.students).forEach(function (s) { wrap.appendChild(buildTile(c, s)); });
+    pointsOrder(c.students).forEach(function (s) { wrap.appendChild(buildTile(c, s)); });
     updateRanks();
     $('class-view').classList.toggle('editing', state.editing);
     requestAnimationFrame(fitRows);
@@ -740,7 +747,7 @@
     $('reset-btn').hidden = true; $('hide-btn').hidden = true; $('edit-hint').hidden = true; $('photo-btn').hidden = true; $('photo-remove-btn').hidden = true;
     $('class-title').contentEditable = 'false';
     $('class-view').classList.remove('editing');
-    if (state.mode === 'score') renderTiles(); // re-sort alphabetically after renames / additions
+    if (state.mode === 'score') renderTiles(); // re-sort by points after edits
   }
 
   function addStudent() {
