@@ -695,7 +695,7 @@
     if (!c) return '';
     if (c.photo) return c.photo;
     var k = teacherKey(c);
-    return TEACHERS.indexOf(k) >= 0 ? '/teachers/' + k + '.jpg' : '';
+    return TEACHERS.indexOf(k) >= 0 ? '/teachers/' + k + '.jpg?v=2' : '';
   }
   function teacherInitial(c) { var k = teacherKey(c); return k && !/^class$/.test(k) ? k[0].toUpperCase() : ''; }
 
