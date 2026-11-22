@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Teko:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <title>SKY Leaderboard</title>
 <style>
   :root {
@@ -27,14 +27,15 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-  body {
-    min-height: 100vh;
-    background:
-      radial-gradient(ellipse at 10% -10%, rgba(239,28,51,0.20), transparent 45%),
-      radial-gradient(ellipse at 90% -5%, rgba(255,204,77,0.10), transparent 40%),
-      var(--bg);
-    background-attachment: fixed;
-  }
+  html { background: #2a2470; }
+  body { min-height: 100vh; background: transparent; position: relative; z-index: 0; }
+  /* Original 8-bit night scene, fixed behind everything */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: url("/bg.svg") center bottom / cover no-repeat; image-rendering: pixelated; }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(10,12,30,.15), rgba(10,12,30,.35)); }
+  .pixel { font-family: "Press Start 2P", ui-monospace, monospace; font-weight: 400; letter-spacing: 0; line-height: 1.25;
+    text-shadow: 3px 3px 0 rgba(0,0,0,.55); }
   .num { font-variant-numeric: tabular-nums; }
   .display { font-family: "Teko", ui-sans-serif, system-ui, sans-serif; font-weight: 600; letter-spacing: 0.01em; line-height: 1; }
   h1, h2 { margin: 0; }
@@ -45,10 +46,10 @@
   /* ---------- Top bar ---------- */
   .topbar {
     position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 12px;
-    padding: 12px 20px; background: rgba(9,11,16,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
+    padding: 12px 20px; background: rgba(30,26,80,0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,.10);
   }
-  .brand { display: flex; align-items: baseline; gap: 7px; font-size: 28px; }
+  .brand { display: flex; align-items: baseline; gap: 10px; font-size: 16px; }
   .brand .mark { color: var(--red-bright); font-weight: 700; }
   .back-btn {
     display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px 9px 10px; border-radius: 999px;
@@ -78,11 +79,11 @@
 
   /* ---------- Home ---------- */
   .home-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-  .home-head h1 { font-size: 48px; }
-  .home-head p { margin: 6px 0 0; color: var(--text-dim); font-size: 15px; }
+  .home-head h1 { font-size: 26px; }
+  .home-head p { margin: 10px 0 0; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); font-size: 15px; }
   .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .class-card {
-    text-align: left; background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+    text-align: left; background: linear-gradient(160deg, rgba(19,23,34,.92) 0%, rgba(26,31,44,.92) 100%);
     border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 16px;
     display: flex; flex-direction: column; gap: 8px; min-height: 128px;
     transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
@@ -103,13 +104,13 @@
     background: var(--surface-3); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; }
   .cc-restore:hover { background: var(--red); border-color: var(--red); color: #fff; }
   .home-foot { margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .link-btn { font-size: 13px; font-weight: 800; color: var(--text-faint); padding: 9px 12px; border-radius: 999px; border: 1px solid transparent; }
+  .link-btn { font-size: 13px; font-weight: 800; color: #fff; padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: rgba(19,23,34,.75); }
   .link-btn:hover { color: var(--text); border-color: var(--border); background: var(--surface); }
   .archived-grid { margin-top: 12px; }
 
   /* ---------- Class header ---------- */
   .class-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
-  .class-title { font-size: 54px; padding: 2px 8px; margin: -2px -8px; border-radius: 10px; min-width: 40px; }
+  .class-title { font-size: 30px; padding: 6px 8px; margin: -2px -8px; border-radius: 10px; min-width: 40px; }
   .editing .class-title { background: rgba(255,255,255,0.05); outline: 1px dashed var(--text-faint); }
   .tools { display: flex; gap: 8px; flex-wrap: wrap; }
   .tool-btn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 16px; border-radius: 999px;
@@ -123,20 +124,20 @@
   .edit-hint { margin: -8px 0 16px; font-size: 13.5px; color: var(--gold); font-weight: 600; }
 
   /* ---------- Score mode tiles ---------- */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-  .empty-msg { color: var(--text-faint); font-size: 15px; text-align: center; padding: 56px 20px;
+  .tiles { display: flex; flex-direction: column; gap: 10px; }
+  .empty-msg { background: rgba(19,23,34,.85); color: var(--text-dim); font-size: 15px; text-align: center; padding: 56px 20px;
     border: 1.5px dashed var(--border); border-radius: var(--radius); margin: 0; }
 
   .tile {
-    position: relative; background: linear-gradient(165deg, var(--surface) 0%, #10131c 100%);
-    border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 14px 12px;
-    display: flex; flex-direction: column; gap: 10px; transition: border-color .25s, box-shadow .25s;
+    position: relative; background: linear-gradient(100deg, rgba(19,23,34,.93) 0%, rgba(16,19,28,.93) 100%);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 10px 16px; box-shadow: 0 8px 24px -14px rgba(0,0,0,.7);
+    display: flex; align-items: center; gap: 16px; transition: border-color .25s, box-shadow .25s;
   }
-  .tile-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  .tile-top { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; order: 1; }
+  .avatar { flex: none; width: 44px; height: 44px; font-size: 19px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 16px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25);
     box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
-  .name { font-family: "Teko", sans-serif; font-weight: 600; font-size: 30px; line-height: 1; padding-top: 3px;
+  .name { font-family: "Teko", sans-serif; font-weight: 600; font-size: 34px; line-height: 1; padding-top: 3px;
     min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 6px; }
   .editing .name { background: rgba(255,255,255,0.06); outline: 1px dashed var(--text-faint); padding: 3px 6px 0; text-overflow: clip; }
   .rank-chip { flex: none; display: none; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; letter-spacing: .04em;
@@ -150,25 +151,25 @@
   .tile[data-rank="2"] { border-color: rgba(215,222,233,.35); }
   .tile[data-rank="3"] { border-color: rgba(226,150,91,.4); }
 
-  .score-line { display: flex; align-items: baseline; gap: 6px; position: relative; }
+  .score-line { display: flex; align-items: center; justify-content: flex-end; gap: 6px; position: relative; order: 3; min-width: 230px; }
   .score { font-family: "Teko", sans-serif; font-weight: 600; font-size: 44px; line-height: .9; }
   .tile[data-rank="1"] .score { color: var(--gold); }
   .tile[data-rank="2"] .score { color: var(--silver); }
   .tile[data-rank="3"] .score { color: var(--bronze); }
   .pts { font-size: 11px; font-weight: 800; color: var(--text-faint); letter-spacing: .08em; text-transform: uppercase; }
-  .undo-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 800;
+  .undo-btn { order: -1; margin-right: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 800;
     color: var(--text-dim); padding: 6px 10px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border);
     transition: opacity .2s; }
   .undo-btn svg { width: 13px; height: 13px; }
   .undo-btn:hover:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }
   .undo-btn:disabled { opacity: 0; pointer-events: none; }
-  .float-pop { position: absolute; left: 0; bottom: 100%; font-family: "Teko", sans-serif; font-weight: 700; font-size: 30px;
+  .float-pop { position: absolute; right: 30px; bottom: 70%; font-family: "Teko", sans-serif; font-weight: 700; font-size: 30px;
     pointer-events: none; animation: floatUp .9s ease-out forwards; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
   @keyframes floatUp { 0% { opacity: 0; transform: translateY(8px) scale(.8); } 15% { opacity: 1; transform: translateY(0) scale(1.1); }
     100% { opacity: 0; transform: translateY(-30px) scale(1); } }
 
-  .btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .pbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60px; border-radius: 13px;
+  .btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; order: 2; flex: 0 0 330px; }
+  .pbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 58px; border-radius: 16px;
     border: 1px solid; transition: transform .08s ease, background .15s ease, box-shadow .15s; user-select: none; -webkit-user-select: none; }
   .pbtn .pl { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
   .pbtn .pa { font-family: "Teko", sans-serif; font-weight: 600; font-size: 26px; line-height: 1; }
@@ -217,7 +218,7 @@
 
   .rest { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
   .rest-row { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-radius: 14px;
-    background: var(--surface); border: 1px solid var(--border); opacity: 0; transform: translateX(-16px); }
+    background: rgba(19,23,34,.92); border: 1px solid var(--border); opacity: 0; transform: translateX(-16px); }
   .rest-row.show { animation: rowIn .4s ease-out forwards; }
   @keyframes rowIn { to { opacity: 1; transform: none; } }
   .rest-row .rr-rank { width: 34px; font-family: "Teko", sans-serif; font-weight: 600; font-size: 30px; color: var(--text-faint); text-align: center; }
@@ -241,15 +242,19 @@
   .toast button { flex: none; font-weight: 800; font-size: 14px; padding: 8px 14px; border-radius: 999px; background: var(--surface-3); color: var(--text); }
   .toast button:hover { background: var(--red); }
 
-  footer { text-align: center; color: var(--text-faint); font-size: 12.5px; padding: 10px 20px 30px; }
+  footer { text-align: center; color: rgba(255,255,255,.7); text-shadow: 0 1px 2px rgba(0,0,0,.6); font-size: 12.5px; padding: 10px 20px 30px; }
 
   @media (max-width: 640px) {
     .topbar { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
-    .brand { font-size: 24px; }
+    .brand { font-size: 12px; }
     main { padding: 18px 12px 80px; }
-    .class-title { font-size: 40px; }
+    .class-title { font-size: 20px; }
     .mode-switch button { padding: 8px 12px; }
-    .tiles { grid-template-columns: 1fr; }
+    .tile { flex-wrap: wrap; gap: 8px 10px; padding: 12px; }
+    .tile-top { flex: 1 1 0; }
+    .score-line { min-width: 0; order: 2; }
+    .undo-btn { order: 3; margin: 0 0 0 6px; }
+    .btns { order: 3; flex: 1 1 100%; }
     .podium { gap: 8px; }
     .pod .big-av { width: 58px; height: 58px; font-size: 24px; }
     .pod.r1 .big-av { width: 74px; height: 74px; font-size: 30px; }
@@ -271,7 +276,7 @@
     <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     All classes
   </button>
-  <div class="brand display" id="brand"><span class="mark">SKY</span><span>Leaderboard</span></div>
+  <div class="brand pixel" id="brand"><span class="mark">SKY</span><span>LEADERBOARD</span></div>
   <div class="spacer"></div>
   <span class="save-status" id="save-status"></span>
   <div class="mode-switch" id="mode-switch" hidden>
@@ -292,7 +297,7 @@
   <section id="home-view">
     <div class="home-head">
       <div>
-        <h1 class="display">Pick a class</h1>
+        <h1 class="pixel">PICK A CLASS</h1>
         <p>Tap a class to open its scoreboard.</p>
       </div>
     </div>
@@ -306,7 +311,7 @@
 
   <section id="class-view" hidden>
     <div class="class-head">
-      <h2 class="class-title display" id="class-title" spellcheck="false"></h2>
+      <h2 class="class-title pixel" id="class-title" spellcheck="false"></h2>
       <div class="tools" id="score-tools">
         <button class="tool-btn primary" id="add-student-btn" type="button">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
@@ -331,7 +336,7 @@
   </section>
 </main>
 
-<footer>Twice-a-week class points, kept online. Bookmark this page. No login needed.</footer>
+<footer class="foot">Twice-a-week class points, kept online. Bookmark this page. No login needed.</footer>
 
 <div class="toast" id="toast"><span class="t-msg" id="toast-msg"></span><button type="button" id="toast-undo">Undo</button></div>
 
