@@ -686,7 +686,7 @@
 
   // Built-in cartoon heads, matched by the first word of the class name
   // ("Mario's L11 W-F" -> mario). An uploaded photo (Edit mode) wins.
-  var TEACHERS = ['aoife', 'andrew', 'mario', 'ritchie', 'sam'];
+  var TEACHERS = ['aoife', 'andrew', 'mario', 'ritchie', 'sam', 'tina'];
   function teacherKey(c) {
     var w = ((c && c.name) || '').trim().split(/\s+/)[0] || '';
     return w.toLowerCase().replace(/['’]s$/, '').replace(/[^a-z]/g, '');
@@ -695,7 +695,7 @@
     if (!c) return '';
     if (c.photo) return c.photo;
     var k = teacherKey(c);
-    return TEACHERS.indexOf(k) >= 0 ? '/teachers/' + k + '.jpg?v=2' : '';
+    return TEACHERS.indexOf(k) >= 0 ? '/teachers/' + k + '.jpg?v=3' : '';
   }
   function teacherInitial(c) { var k = teacherKey(c); return k && !/^class$/.test(k) ? k[0].toUpperCase() : ''; }
 
