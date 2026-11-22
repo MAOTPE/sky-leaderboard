@@ -1,4 +1,8 @@
-const { writeOneClass } = require('../lib/redis');
+const { writeOneClass, readOneClass } = require('../lib/redis');
+
+// Small resized teacher photo stored as a data URL (client shrinks it to ~200px).
+const PHOTO_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const PHOTO_MAX = 150000;
 
 const KEY_RE = /^class-([1-9]|1[0-9]|2[0-5])$/;
 
@@ -40,6 +44,20 @@ module.exports = async (req, res) => {
       archived: !!archived,
       students: cleanStudents,
     };
+
+    // Teacher photo:
+    //  - string  -> set it (if it's a valid small image)
+    //  - null    -> remove it
+    //  - missing -> keep whatever is already stored (older/cached pages
+    //               that don't know about photos can never wipe one out)
+    let photo = '';
+    if (typeof body.photo === 'string') {
+      photo = (body.photo.length <= PHOTO_MAX && PHOTO_RE.test(body.photo)) ? body.photo : '';
+    } else if (body.photo !== null) {
+      const existing = await readOneClass(key);
+      photo = (existing && typeof existing.photo === 'string') ? existing.photo : '';
+    }
+    if (photo) payload.photo = photo;
 
     const storageMode = await writeOneClass(key, payload);
     res.status(200).json({ ok: true, storageMode });
