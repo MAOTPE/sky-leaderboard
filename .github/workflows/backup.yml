@@ -1,0 +1,45 @@
+name: Nightly scores backup
+
+on:
+  schedule:
+    - cron: "23 18 * * *"   # 02:23 Taipei time, every night
+  workflow_dispatch:         # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch scores from the live app
+        env:
+          APP_URL: https://sky-leaderboard-eight.vercel.app
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-delay 10 "$APP_URL/api/state" -o state.json
+
+          # Refuse to save anything that isn't real database data, so a bad
+          # night can never overwrite a good backup.
+          mode=$(jq -r '.storageMode' state.json)
+          count=$(jq '.classes | length' state.json)
+          if [ "$mode" != "redis" ] || [ "$count" -ne 25 ]; then
+            echo "Unexpected response (storageMode=$mode, classes=$count). Not saving."
+            exit 1
+          fi
+
+          day=$(TZ=Asia/Taipei date +%F)
+          mkdir -p backups/daily
+          jq --arg t "$(date -u +%FT%TZ)" '{backedUpAt: $t, classes: .classes}' state.json > backups/latest.json
+          cp backups/latest.json "backups/daily/$day.json"
+          rm state.json
+
+      - name: Commit backup
+        run: |
+          git config user.name "sky-backup-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backups
+          git commit -m "Scores backup $(TZ=Asia/Taipei date +%F)" || echo "Nothing new"
+          git push

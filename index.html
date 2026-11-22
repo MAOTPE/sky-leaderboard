@@ -341,6 +341,15 @@
     .class-name { font-size: 36px; }
   }
 
+  .backup-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 36px 0 8px; }
+  .backup-btn {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    padding: 8px 14px; border-radius: 999px;
+    background: transparent; color: var(--text-faint);
+    border: 1px solid currentColor; opacity: 0.8;
+  }
+  .backup-btn:hover { opacity: 1; }
+
   footer { text-align: center; color: var(--text-faint); font-size: 12.5px; padding: 30px 20px 10px; }
 </style>
 </head>
@@ -372,6 +381,11 @@
       </div>
       <div class="class-grid" id="class-grid"></div>
       <div class="archived-row" id="archived-row"></div>
+      <div class="backup-row">
+        <button type="button" class="backup-btn" id="backup-download-btn">Download backup</button>
+        <button type="button" class="backup-btn" id="backup-restore-btn">Restore from backup</button>
+        <input type="file" id="backup-file" accept=".json,application/json" hidden>
+      </div>
     </div>
 
     <div id="class-view">
@@ -695,23 +709,124 @@
     var saveTimers = {};
     var pendingBlocks = {};
 
+    // ---- Teacher PIN (only asked for if the server has one set) ----
+    var PIN_STORE = 'sky_leaderboard_pin';
+    var pinPrompt = null; // shared, so several saves at once ask only once
+
+    function getPin() {
+      try { return localStorage.getItem(PIN_STORE) || ''; } catch (e) { return ''; }
+    }
+    function setPin(p) {
+      try { if (p) localStorage.setItem(PIN_STORE, p); else localStorage.removeItem(PIN_STORE); } catch (e) {}
+    }
+    function askForPin(wasWrong) {
+      if (!pinPrompt) {
+        pinPrompt = new Promise(function (resolve) {
+          setTimeout(function () {
+            var p = window.prompt(wasWrong ? 'Wrong PIN. Enter the teacher PIN to save:' : 'Enter the teacher PIN to save scores:');
+            pinPrompt = null;
+            p = (p || '').trim();
+            setPin(p);
+            resolve(p);
+          }, 0);
+        });
+      }
+      return pinPrompt;
+    }
+
+    function postClass(payload, retried) {
+      return fetch('/api/class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Sky-Pin': getPin() },
+        body: JSON.stringify(payload)
+      }).then(function (r) {
+        if (r.status === 401 && !retried) {
+          return askForPin(!!getPin()).then(function (p) {
+            if (!p) throw new Error('pin');
+            return postClass(payload, true);
+          });
+        }
+        if (r.status === 401) { setPin(''); throw new Error('pin'); }
+        if (!r.ok) throw new Error('bad status ' + r.status);
+        return r.json();
+      });
+    }
+
     function doSave(block) {
       var key = block.getAttribute('data-key');
       var payload = gatherClassPayload(block);
       setSaveStatus('saving');
-      return fetch('/api/class', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      return postClass(payload).then(function () {
+        delete pendingBlocks[key];
+        setSaveStatus('saved');
+      }).catch(function (err) {
+        setSaveStatus('error', err && err.message === 'pin' ? 'Not saved — PIN needed' : undefined);
+      });
+    }
+
+    // ---- Backup download / restore ----
+    function todayStamp() {
+      var d = new Date();
+      function p(n) { return (n < 10 ? '0' : '') + n; }
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
+    function downloadBackup() {
+      flushAllPending().then(function () {
+        return fetch('/api/state');
       }).then(function (r) {
         if (!r.ok) throw new Error('bad status ' + r.status);
         return r.json();
-      }).then(function () {
-        delete pendingBlocks[key];
-        setSaveStatus('saved');
+      }).then(function (data) {
+        var out = { backedUpAt: new Date().toISOString(), classes: data.classes || [] };
+        var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'sky-leaderboard-' + todayStamp() + '.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
       }).catch(function () {
-        setSaveStatus('error');
+        window.alert('Could not download the backup. Check the internet and try again.');
       });
+    }
+
+    function restoreFromFile(file) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var data;
+        try { data = JSON.parse(reader.result); } catch (e) { data = null; }
+        var classes = data && Array.isArray(data.classes) ? data.classes.filter(function (c) {
+          return c && /^class-([1-9]|1[0-9]|2[0-5])$/.test(c.key) && Array.isArray(c.students);
+        }) : [];
+        if (!classes.length) { window.alert('That file is not a SKY Leaderboard backup.'); return; }
+        var when = data.backedUpAt ? new Date(data.backedUpAt).toLocaleString() : 'an unknown date';
+        var studentCount = classes.reduce(function (n, c) { return n + c.students.length; }, 0);
+        if (!window.confirm(
+          'Restore backup from ' + when + '?\n\n' +
+          classes.length + ' classes, ' + studentCount + ' students.\n\n' +
+          'This REPLACES the current scores for those classes.'
+        )) return;
+
+        setSaveStatus('saving');
+        flushAllPending().then(function () {
+          // One at a time, so a PIN prompt only appears once.
+          return classes.reduce(function (chain, c) {
+            return chain.then(function () {
+              return postClass({ key: c.key, name: c.name || 'Class', archived: !!c.archived, students: c.students });
+            });
+          }, Promise.resolve());
+        }).then(function () {
+          return refreshAllFromServer();
+        }).then(function () {
+          setSaveStatus('saved');
+          window.alert('Backup restored.');
+        }).catch(function (err) {
+          setSaveStatus('error', err && err.message === 'pin' ? 'Not restored — PIN needed' : 'Restore failed');
+          refreshAllFromServer();
+        });
+      };
+      reader.readAsText(file);
     }
 
     function saveClass(block) {
@@ -1014,6 +1129,13 @@
       qs('#reset-scores-btn').addEventListener('click', resetScores);
       qs('#hide-class-btn').addEventListener('click', hideClass);
       qs('#boot-retry').addEventListener('click', refreshAllFromServer);
+      qs('#backup-download-btn').addEventListener('click', downloadBackup);
+      qs('#backup-restore-btn').addEventListener('click', function () { qs('#backup-file').click(); });
+      qs('#backup-file').addEventListener('change', function (e) {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (f) restoreFromFile(f);
+      });
 
       qsa('.class-name').forEach(function (nameEl) {
         nameEl.addEventListener('blur', function () {

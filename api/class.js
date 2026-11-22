@@ -7,6 +7,17 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: 'POST only' });
     return;
   }
+  // Teacher PIN. Set SKY_PIN in Vercel (Settings -> Environment Variables)
+  // to turn it on. Until it's set, saving stays open so nothing breaks.
+  const requiredPin = (process.env.SKY_PIN || '').trim();
+  if (requiredPin) {
+    const given = String(req.headers['x-sky-pin'] || '').trim();
+    if (given !== requiredPin) {
+      res.status(401).json({ error: 'pin' });
+      return;
+    }
+  }
+
   try {
     let body = req.body;
     // Defensive: Vercel's Node runtime normally auto-parses a JSON body into
