@@ -539,13 +539,13 @@
   }
 
   // ---------------- Score mode ----------------
-  // Rows are laid out once, by points, when the class opens. They never move
-  // while points are being added; only medals and colours update.
+  // Rows are alphabetical and never move while points are being added;
+  // only medals and colours update. Results mode shows the ranking.
   function renderTiles() {
     var c = currentClass(); if (!c) return;
     var wrap = $('tiles'); wrap.innerHTML = '';
     $('empty-msg').hidden = c.students.length > 0;
-    pointsOrder(c.students).forEach(function (s) { wrap.appendChild(buildTile(c, s)); });
+    alphaOrder(c.students).forEach(function (s) { wrap.appendChild(buildTile(c, s)); });
     updateRanks();
     $('class-view').classList.toggle('editing', state.editing);
     requestAnimationFrame(fitRows);
@@ -747,7 +747,7 @@
     $('reset-btn').hidden = true; $('hide-btn').hidden = true; $('edit-hint').hidden = true; $('photo-btn').hidden = true; $('photo-remove-btn').hidden = true;
     $('class-title').contentEditable = 'false';
     $('class-view').classList.remove('editing');
-    if (state.mode === 'score') renderTiles(); // re-sort by points after edits
+    if (state.mode === 'score') renderTiles(); // re-sort alphabetically after edits
   }
 
   function addStudent() {
