@@ -459,7 +459,9 @@
     } else {
       var top = c.students.reduce(function (a, b) { return b.score > a.score ? b : a; });
       var lead = el('span', 'cc-leader'); lead.innerHTML = STAR;
-      var t = el('span'); t.appendChild(document.createTextNode(top.name + ' · ')); t.appendChild(el('b', 'num', fmt(top.score)));
+      // Leader's name only. Each teacher has their own point system, so
+      // showing scores side by side here would invite comparing classes.
+      var t = el('span'); t.appendChild(el('b', null, top.score > 0 ? top.name : 'No points yet'));
       lead.appendChild(t); card.appendChild(lead);
     }
     card.addEventListener('click', function () { if (!archivedMode) openClass(c.key); });
