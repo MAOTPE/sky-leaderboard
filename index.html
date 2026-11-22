@@ -212,6 +212,28 @@
   .confetti { position: fixed; top: -12px; width: 9px; height: 14px; z-index: 50; pointer-events: none; border-radius: 2px; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity: .9; } }
 
+  /* ---------- Sign-in + history overlays ---------- */
+  .overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px;
+    background: rgba(30,20,80,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .panel { width: 100%; max-width: 420px; background: #fff; border-radius: 24px; padding: 28px; box-shadow: 0 30px 60px -20px rgba(20,10,60,.7); }
+  .panel h2 { font-size: 16px; margin-bottom: 6px; }
+  .panel p { margin: 0 0 18px; color: var(--ink-dim); font-size: 15px; }
+  .panel input { width: 100%; font: inherit; font-size: 20px; padding: 14px 16px; border-radius: 14px; border: 2px solid #e4def8; outline: none; color: var(--ink); }
+  .panel input:focus { border-color: var(--red); }
+  .panel .row { display: flex; gap: 10px; margin-top: 14px; }
+  .panel .err { color: var(--red); font-weight: 700; font-size: 14px; min-height: 20px; margin-top: 8px; }
+  .big-btn { flex: 1; font-weight: 700; font-size: 17px; padding: 14px; border-radius: 14px; background: var(--red); color: #fff; }
+  .big-btn.ghost { background: #f1eefb; color: var(--ink); }
+  .big-btn:disabled { opacity: .6; }
+  .panel.wide { max-width: 560px; max-height: 85vh; display: flex; flex-direction: column; }
+  .hist-list { overflow: auto; margin: 0 -8px; padding: 0 8px; display: flex; flex-direction: column; gap: 8px; }
+  .hist-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #f7f5fd; }
+  .hist-item .hi-main { flex: 1; min-width: 0; }
+  .hist-item .hi-when { font-weight: 700; }
+  .hist-item .hi-what { font-size: 13px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-item button { font-weight: 700; font-size: 14px; padding: 8px 14px; border-radius: 999px; background: #fff; border: 2px solid #e4def8; }
+  .hist-item button:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
   /* ---------- Toast ---------- */
   .toast { position: fixed; left: 50%; top: 70px; transform: translate(-50%, -30px); z-index: 40; display: flex; align-items: center; gap: 14px;
     background: #1f1d47; color: #fff; border-radius: 999px; padding: 10px 10px 10px 20px; font-weight: 700; font-size: 15px;
@@ -311,6 +333,7 @@
         <button class="tool-btn" id="photo-btn" type="button" hidden>Teacher photo</button>
         <button class="tool-btn" id="photo-remove-btn" type="button" hidden>Remove photo</button>
         <input type="file" id="photo-input" accept="image/*" hidden>
+        <button class="tool-btn" id="history-btn" type="button" hidden>History</button>
         <button class="tool-btn warn" id="reset-btn" type="button" hidden>Reset scores</button>
         <button class="tool-btn warn" id="hide-btn" type="button" hidden>Hide class</button>
       </div>
@@ -327,6 +350,25 @@
 </main>
 
 <footer class="foot">Twice-a-week class points, kept online. Bookmark this page. No login needed.</footer>
+
+<div class="overlay" id="login" hidden>
+  <form class="panel" id="login-form">
+    <h2 class="pixel"><span style="color:var(--red)">SKY</span> LEADERBOARD</h2>
+    <p>Enter the teacher password. This computer will stay signed in.</p>
+    <input type="password" id="login-pw" autocomplete="current-password" placeholder="Password">
+    <div class="err" id="login-err"></div>
+    <div class="row"><button class="big-btn" type="submit" id="login-btn">Sign in</button></div>
+  </form>
+</div>
+
+<div class="overlay" id="history" hidden>
+  <div class="panel wide">
+    <h2>Class history</h2>
+    <p>Every save is kept. Pick a version to put this class back the way it was.</p>
+    <div class="hist-list" id="hist-list"></div>
+    <div class="row"><button class="big-btn ghost" type="button" id="hist-close">Close</button></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"><span class="t-msg" id="toast-msg"></span><button type="button" id="toast-undo">Undo</button></div>
 
@@ -423,13 +465,37 @@
     });
   }
 
+  // ---------------- Sign-in ----------------
+  var needsResave = {};
+  function showLogin() {
+    if (!$('login').hidden) return;
+    $('login').hidden = false; $('login-err').textContent = ''; $('login-pw').value = '';
+    setTimeout(function () { $('login-pw').focus(); }, 50);
+  }
+  function doLogin(e) {
+    e.preventDefault();
+    var btn = $('login-btn'); btn.disabled = true; $('login-err').textContent = '';
+    fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('login-pw').value }) })
+      .then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) { $('login-err').textContent = r.status === 401 ? 'Wrong password. Try again.' : 'Could not reach the server.'; return; }
+        $('login').hidden = true;
+        Object.keys(needsResave).forEach(function (k) { delete needsResave[k]; saveClass(k); });
+        return loadFromServer().then(function () { if (state.view === 'home') renderHome(); else setMode(state.mode); });
+      })
+      .catch(function () { btn.disabled = false; $('login-err').textContent = 'Could not reach the server.'; });
+  }
+
   var saveTimers = {};
   function doSave(key) {
     var c = findClass(key);
     if (!c) return Promise.resolve();
     setSaveStatus('saving');
     return fetch('/api/class', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadFor(c)) })
-      .then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); })
+      .then(function (r) {
+        if (r.status === 401) { needsResave[key] = true; showLogin(); throw new Error('login'); }
+        if (!r.ok) throw new Error('status ' + r.status); return r.json();
+      })
       .then(function () { setSaveStatus('saved'); })
       .catch(function () { setSaveStatus('error'); });
   }
@@ -448,7 +514,10 @@
   function loadFromServer() {
     setSaveStatus('loading');
     return fetch('/api/state', { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); })
+      .then(function (r) {
+        if (r.status === 401) { setSaveStatus('idle'); showLogin(); return Promise.reject('login'); }
+        if (!r.ok) throw new Error('status ' + r.status); return r.json();
+      })
       .then(function (data) {
         state.classes = (data.classes || []).map(function (c) {
           return {
@@ -461,7 +530,7 @@
         $('boot-error').hidden = true;
         setSaveStatus('idle');
       })
-      .catch(function () { setSaveStatus('error', 'Could not load'); $('boot-error').hidden = false; });
+      .catch(function (e) { if (e === 'login') return; setSaveStatus('error', 'Could not load'); $('boot-error').hidden = false; });
   }
 
   // ---------------- Home ----------------
@@ -730,11 +799,47 @@
     c.photo = ''; c.photoRemoved = true; syncHeadPhoto(); fitRows(); saveClass(c.key);
   }
 
+  // ---------------- History ----------------
+  function fmtWhen(t) {
+    var d = new Date(t);
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' +
+      d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+  function openHistory() {
+    var c = currentClass(); if (!c) return;
+    var list = $('hist-list'); list.innerHTML = '<p>Loading…</p>'; $('history').hidden = false;
+    flushAll().then(function () { return fetch('/api/history?key=' + encodeURIComponent(c.key), { cache: 'no-store' }); })
+      .then(function (r) { if (r.status === 401) { $('history').hidden = true; showLogin(); throw 'login'; } if (!r.ok) throw 0; return r.json(); })
+      .then(function (data) {
+        list.innerHTML = '';
+        var versions = data.versions || [];
+        if (!versions.length) { list.appendChild(el('p', null, 'No earlier versions yet. They are kept from now on, every time this class is saved.')); return; }
+        versions.forEach(function (v) {
+          var d = v.data || {}, st = d.students || [];
+          var total = st.reduce(function (a, x) { return a + (parseInt(x.score, 10) || 0); }, 0);
+          var top = st.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); })[0];
+          var item = el('div', 'hist-item'), main = el('div', 'hi-main');
+          main.appendChild(el('div', 'hi-when', fmtWhen(v.t)));
+          main.appendChild(el('div', 'hi-what', st.length + ' students · ' + fmt(total) + ' pts in total' + (top && top.score ? ' · top: ' + top.name : '')));
+          var b = el('button', null, 'Restore'); b.type = 'button';
+          b.addEventListener('click', function () {
+            if (!window.confirm('Put "' + c.name + '" back to how it was on ' + fmtWhen(v.t) + '?\n\nThe current version is kept in history too, so this can be undone.')) return;
+            c.name = d.name || c.name;
+            c.students = st.map(function (x) { return { id: nextId++, name: String(x.name || 'Student'), score: parseInt(x.score, 10) || 0, lastDelta: 0 }; });
+            saveClass(c.key); $('history').hidden = true;
+            $('class-title').textContent = c.name; renderTiles();
+          });
+          item.appendChild(main); item.appendChild(b); list.appendChild(item);
+        });
+      })
+      .catch(function (e) { if (e !== 'login') list.innerHTML = '<p>Could not load history. Check the internet connection.</p>'; });
+  }
+
   // ---------------- Edit mode ----------------
   function startEditing() {
     state.editing = true;
     $('edit-btn').classList.add('on'); $('edit-btn').querySelector('span').textContent = 'Done';
-    $('reset-btn').hidden = false; $('hide-btn').hidden = false; $('edit-hint').hidden = false; $('photo-btn').hidden = false; syncHeadPhoto();
+    $('reset-btn').hidden = false; $('hide-btn').hidden = false; $('edit-hint').hidden = false; $('photo-btn').hidden = false; $('history-btn').hidden = false; syncHeadPhoto();
     $('class-title').contentEditable = 'true';
     $('class-view').classList.add('editing');
     Array.prototype.forEach.call($('tiles').querySelectorAll('.name'), function (n) { n.contentEditable = 'true'; });
@@ -744,7 +849,7 @@
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     state.editing = false;
     $('edit-btn').classList.remove('on'); $('edit-btn').querySelector('span').textContent = 'Edit';
-    $('reset-btn').hidden = true; $('hide-btn').hidden = true; $('edit-hint').hidden = true; $('photo-btn').hidden = true; $('photo-remove-btn').hidden = true;
+    $('reset-btn').hidden = true; $('hide-btn').hidden = true; $('edit-hint').hidden = true; $('photo-btn').hidden = true; $('photo-remove-btn').hidden = true; $('history-btn').hidden = true;
     $('class-title').contentEditable = 'false';
     $('class-view').classList.remove('editing');
     if (state.mode === 'score') renderTiles(); // re-sort alphabetically after edits
@@ -847,7 +952,7 @@
   // ---------------- Backup ----------------
   function downloadBackup() {
     flushAll().then(function () { return fetch('/api/state', { cache: 'no-store' }); })
-      .then(function (r) { if (!r.ok) throw new Error(); return r.text(); })
+      .then(function (r) { if (r.status === 401) { showLogin(); throw new Error(); } if (!r.ok) throw new Error(); return r.text(); })
       .then(function (txt) {
         var d = new Date(), stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         var a = document.createElement('a');
@@ -864,6 +969,9 @@
     $('add-student-btn').addEventListener('click', addStudent);
     $('edit-btn').addEventListener('click', function () { state.editing ? finishEditing() : startEditing(); });
     $('reset-btn').addEventListener('click', resetScores);
+    $('history-btn').addEventListener('click', openHistory);
+    $('hist-close').addEventListener('click', function () { $('history').hidden = true; });
+    $('login-form').addEventListener('submit', doLogin);
     $('photo-btn').addEventListener('click', function () { $('photo-input').click(); });
     $('photo-input').addEventListener('change', onPhotoPicked);
     $('photo-remove-btn').addEventListener('click', removePhoto);

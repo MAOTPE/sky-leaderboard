@@ -6,11 +6,14 @@ const PHOTO_MAX = 150000;
 
 const KEY_RE = /^class-([1-9]|1[0-9]|2[0-5])$/;
 
+const { requireAuth } = require('../lib/auth');
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' });
     return;
   }
+  if (!requireAuth(req, res)) return;
   try {
     let body = req.body;
     // Defensive: Vercel's Node runtime normally auto-parses a JSON body into
